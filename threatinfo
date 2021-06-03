@@ -3,6 +3,8 @@
 #
 # threatinfo
 #
+# Prerequisites: gawk, jq
+#
 # Usage: ./threatinfo <IP ADDRESS>
 #
 # Returns a report about <IP ADDRESS> useful to SOC staff and threat researchers
