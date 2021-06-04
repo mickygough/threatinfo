@@ -106,6 +106,7 @@ _EOF
     if [ -z "${IPDATA_KEY}" -o -z "${IPINFO_KEY}" -o -z "${ABUSEIPDB_KEY}" ]; then
 
         echo "Key store at ${KEY_STORE} is missing mandatory keys. Please fix before continuing."
+        exit
     fi
 }
 
