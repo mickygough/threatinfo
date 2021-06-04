@@ -3,8 +3,6 @@
 #
 # threatinfo
 #
-# Prerequisites: gawk, jq
-#
 # Usage: ./threatinfo <IP ADDRESS>
 #
 # Returns a report about <IP ADDRESS> useful to SOC staff and threat researchers
@@ -15,7 +13,54 @@
 # Todo: Lots of things.
 #
 
+#
+# Do we want to store the data for manual analysis later?
+#
 
+KEEP_DATA=1
+
+#
+# Where should we put stored data?
+#
+# LFMF: Using ${HOME} rather than ~ actually works ;)
+#
+
+KEEP_DATA_LOCATION="${HOME}/.threatinfo"
+
+#
+# Where should we keep our keys?
+#
+
+KEY_STORE="${HOME}/.threatinfo.conf"
+
+#
+# Useful functions
+#
+
+function underline(){
+
+    # Prints a single line of text and underlines it with = signs
+
+    i=0
+    LENGTH=$( echo -n $1 |wc -c )
+
+    echo $1
+
+    while [ $i -lt ${LENGTH} ]; do
+
+        echo -n "="
+        ((i=i+1))
+    done
+
+    echo
+}
+
+function get_keys(){
+
+    # Check that the keystore exists
+    if [ ! -f "${KEY_STORE}" ]; then
+
+        cat <<_EOF >"${KEY_STORE}"
 #
 # You'll need to provide API keys for the following services:
 #
@@ -48,41 +93,20 @@ ABUSEIPDB_KEY=""
 #
 
 SHODAN_KEY=""
+_EOF
 
-#
-# Do we want to store the data for manual analysis later?
-#
+        chmod 700 "${KEY_STORE}"
 
-KEEP_DATA=1
+        echo "Key store not found. Please populate ${KEY_STORE} with the relevant API keys."
+        exit
+    fi
 
-#
-# Where should we put stored data?
-#
-# LFMF: Using ${HOME} rather than ~ actually works ;)
-#
+    source "${KEY_STORE}"
 
-KEEP_DATA_LOCATION="${HOME}/.threatinfo"
+    if [ -z "${IPDATA_KEY}" -o -z "${IPINFO_KEY}" -o -z "${ABUSEIPDB_KEY}" ]; then
 
-#
-# Useful functions
-#
-
-function underline(){
-
-    # Prints a single line of text and underlines it with = signs
-
-    i=0
-    LENGTH=$( echo -n $1 |wc -c )
-
-    echo $1
-
-    while [ $i -lt ${LENGTH} ]; do
-
-        echo -n "="
-        ((i=i+1))
-    done
-
-    echo
+        echo "Key store at ${KEY_STORE} is missing mandatory keys. Please fix before continuing."
+    fi
 }
 
 function get_Ipinfo_Field(){
@@ -268,6 +292,7 @@ function report(){
 
 main() {
 
+    get_keys
     fetch_data "${1}"
     parse_fields
     report "${1}"
