@@ -3,7 +3,7 @@
 #
 # threatinfo
 #
-# Usage: ./threatinfo <IPv4 ADDRESS>
+# Usage: threatinfo <IPv4 ADDRESS>
 #
 # Returns a report about <IP ADDRESS> useful to SOC staff and threat researchers
 # using publicly available data.
@@ -32,6 +32,18 @@ KEEP_DATA_LOCATION="${HOME}/.threatinfo"
 #
 
 KEY_STORE="${HOME}/.threatinfo.conf"
+
+#
+# How long before country code mappings should be considered stale (in days)
+#
+
+COUNTRY_CODE_REFRESH=14
+
+#
+# How long before we consider IP data stale (in days)
+#
+
+IP_DATA_REFRESH=3
 
 #
 # Useful functions
@@ -142,11 +154,17 @@ function get_Ipdata_Field(){
     echo "$IPDATA_DATA" |jq ".${1}" |sed 's/false/No/; s/true/Yes/; s/null/unknown/; s/^"//; s/"$//'
 }
 
-function get_IPdata_Status(){
+function get_Ipdata_Status(){
 
     # Extracts a single status report field from an IPData.co JSON response
 
     echo "$IPDATA_DATA" |jq ".threat|.${1}" |sed 's/false/No/; s/true/Yes/; s/null/unknown/'
+}
+
+function get_Ipdata_Timeinfo(){
+
+    # Extracts a single field from the timezone data in an IPData.co JSON response
+    echo "$IPDATA_DATA" |jq ".time_zone|.${1}" |sed 's/false/No/; s/true/Yes/; s/null/unknown/; s/^"//; s/"$//'
 }
 
 function get_Greynoise_Status(){
@@ -163,7 +181,21 @@ function get_AbuseIPDB_Field(){
     echo "$ABUSEIPDB_DATA" |jq ".data|.$1" |sed 's/^"//; s/"$//'
 }
 
+function resolve_Country_Name(){
+
+    # Echoes a country name given a two letter country code
+    grep -P "^${1}" ${KEEP_DATA_LOCATION}/countrycodes.txt |cut -f 2- -d " "
+}
+
 function fetch_data(){
+
+    if [ $( find ${KEEP_DATA_LOCATION}/countrycodes.txt -mtime -${COUNTRY_CODE_REFRESH} 2>/dev/null |wc -l ) -lt 1 ]; then
+
+        echo "Freshening country code data"
+
+        curl -L -s https://datahub.io/core/country-list/r/data.json |jq '.[] | "\(.Code) \(.Name)"' |sed 's/^"//; s/\"$//' >${KEEP_DATA_LOCATION}/countrycodes.txt 
+        echo
+    fi
 
     # The main routine that pulls data from the various data sources
 
@@ -174,18 +206,50 @@ function fetch_data(){
     echo -n "Fetching data."
 
     #
-    # Fetch data from IPInfo.io. This give really good location data.
+    # Fetch data from IPInfo.io. This gives really good location data.
     #
 
-    IPINFO_DATA=$( curl -s "https://ipinfo.io/${1}/?token=${IPINFO_KEY}" |jq '.' )
+    if [ $( find ${KEEP_DATA_LOCATION}/${1}/ipinfo.json -mtime -${IP_DATA_REFRESH} 2>/dev/null |wc -l ) -lt 1 ]; then
+
+        IPINFO_DATA=$( curl -s "https://ipinfo.io/${1}/?token=${IPINFO_KEY}" |jq '.' )
+
+        if [ $KEEP_DATA -eq 1 ]; then
+
+            echo "${IPINFO_DATA}" >${KEEP_DATA_LOCATION}/${1}/ipinfo.json
+        fi
+    else
+
+        IPINFO_DATA="$( cat ${KEEP_DATA_LOCATION}/${1}/ipinfo.json )"
+    fi
    
     echo -n "."
+
+    #
+    # We're going to check if this is a bogon right now to avoid retrieving unnecessary data
+    bogon=$( get_Ipinfo_Field bogon )
+
+    if [ "${bogon}" == "true" ]; then
+
+        echo; echo
+        return
+    fi
 
     #
     # Fetch data from IPData.co. This provides some really useful assessments on internet scanners
     #
 
-    IPDATA_DATA=$( curl -s "https://api.ipdata.co/${1}?api-key=${IPDATA_KEY}" |jq '.' )
+    if [ $( find ${KEEP_DATA_LOCATION}/${1}/ipdata.json -mtime -${IP_DATA_REFRESH} 2>/dev/null |wc -l ) -lt 1 ]; then
+
+        IPDATA_DATA=$( curl -s "https://api.ipdata.co/${1}?api-key=${IPDATA_KEY}" |jq '.' )
+
+        if [ $KEEP_DATA -eq 1 ]; then
+
+            echo "${IPDATA_DATA}" >${KEEP_DATA_LOCATION}/${1}/ipdata.json
+        fi
+    else
+
+        IPDATA_DATA="$( cat ${KEEP_DATA_LOCATION}/${1}/ipdata.json )"
+    fi
 
     echo -n "."
 
@@ -198,7 +262,18 @@ function fetch_data(){
 
     if [ -n "${SHODAN_KEY}" ]; then
 
-        SHODAN_DATA=$( curl -s "https://api.shodan.io/shodan/host/${1}?key=${SHODAN_KEY}" |jq '.')
+        if [ $( find ${KEEP_DATA_LOCATION}/${1}/shodan.json -mtime -${IP_DATA_REFRESH} 2>/dev/null |wc -l ) -lt 1 ]; then
+
+            SHODAN_DATA=$( curl -s "https://api.shodan.io/shodan/host/${1}?key=${SHODAN_KEY}" |jq '.')
+
+            if [ $KEEP_DATA -eq 1 ]; then
+
+                echo "${SHODAN_DATA}" >${KEEP_DATA_LOCATION}/${1}/shodan.json
+            fi
+        else
+
+            SHODAN_DATA="$( cat ${KEEP_DATA_LOCATION}/${1}/shodan.json )"
+        fi
 
         echo -n "."
     fi
@@ -208,13 +283,26 @@ function fetch_data(){
     #
     # This gives good analysis from their honeypots.
     #
-    
-    GREYNOISE_DATA=$( curl -s  https://api.greynoise.io/v3/community/${1} |jq '.' )
+
+    if [ $( find ${KEEP_DATA_LOCATION}/${1}/greynoise.json -mtime -${IP_DATA_REFRESH} 2>/dev/null |wc -l ) -lt 1 ]; then
+
+        GREYNOISE_DATA=$( curl -s  https://api.greynoise.io/v3/community/${1} |jq '.' )
+
+        if [ $KEEP_DATA -eq 1 ]; then
+
+            echo "${GREYNOISE_DATA}" >${KEEP_DATA_LOCATION}/${1}/greynoise.json
+        fi
+    else
+
+        GREYNOISE_DATA="$( cat ${KEEP_DATA_LOCATION}/${1}/greynoise.json )"
+    fi
 
     echo -n "."
 
     #
     # Fetch data from AbuseIPDB.com. This gives useful community-driven threat intelligence.
+    #
+    # Since this gets updated in realtime we're not going to use cached values for this data set.
     #
 
     ABUSEIPDB_DATA=$( curl -s -H "Key: ${ABUSEIPDB_KEY}" -H "Accept: application/json" "https://api.abuseipdb.com/api/v2/check?ipAddress=${1}&maxAgeInDays=90" |jq '.' )
@@ -225,40 +313,55 @@ function fetch_data(){
     # Fetch WHOIS data in JSON format using RDAP
     #
 
-    WHOIS_DATA=$( curl -s -L -H "Accept: application/json" "https://rdap.apnic.net/ip/${1}/32" |jq '.' )
+    if [ $( find ${KEEP_DATA_LOCATION}/${1}/whois.json -mtime -${IP_DATA_REFRESH} 2>/dev/null |wc -l ) -lt 1 ]; then
+
+        WHOIS_DATA=$( curl -s -L -H "Accept: application/json" "https://rdap.apnic.net/ip/${1}/32" |jq '.' )
+
+        if [ $KEEP_DATA -eq 1 ]; then
+
+            echo "${WHOIS_DATA}" >${KEEP_DATA_LOCATION}/${1}/whois.json
+        fi
+    else
+
+        WHOIS_DATA="$( cat ${KEEP_DATA_LOCATION}/${1}/whois.json )"
+    fi
 
     echo "."
     echo
 
-    if [ $KEEP_DATA -eq 1 ]; then
-
-        echo "${IPINFO_DATA}" >${KEEP_DATA_LOCATION}/${1}/ipinfo.json
-	echo "${IPDATA_DATA}" >${KEEP_DATA_LOCATION}/${1}/ipdata.json
-        echo "${GREYNOISE_DATA}" >${KEEP_DATA_LOCATION}/${1}/greynoise.json
-	echo "${ABUSEIPDB_DATA}" >${KEEP_DATA_LOCATION}/${1}/abuseipdb.json
-	echo "${WHOIS_DATA}" >${KEEP_DATA_LOCATION}/${1}/whois.json
-
-        # Store the Shodan data if we collected it
-	if [ -n "${SHODAN_KEY}" ]; then
-
-	    echo "${SHODAN_DATA}" >${KEEP_DATA_LOCATION}/${1}/shodan.json
-	fi
-    fi
 }
 
 function parse_fields() {
 
+    if [ "${bogon}" == "true" ]; then
+
+        return
+    fi
+
     PTR=$( get_Ipinfo_Field hostname )
-    countryName=$( get_Ipdata_Field country_name )
-    cityName=$( get_Ipinfo_Field city )
+    countryIpinfo=$( get_Ipinfo_Field country )
+    countryNameIpinfo=$( resolve_Country_Name ${countryIpinfo} )
+    regionNameIpinfo=$( get_Ipinfo_Field region )
+    cityNameIpinfo=$( get_Ipinfo_Field city )
+    countryNameIpdata=$( get_Ipdata_Field country_name )
+    regionNameIpdata=$( get_Ipdata_Field region )
+    cityNameIpdata=$( get_Ipdata_Field city )
     orgName=$( get_Ipinfo_Field org )
     ISP=$( get_AbuseIPDB_Field isp )
-    
-    torStatus=$( get_IPdata_Status is_tor )
-    proxyStatus=$( get_IPdata_Status is_proxy )
-    attackerStatus=$( get_IPdata_Status is_known_attacker )
-    threatStatus=$( get_IPdata_Status is_threat )
-    botStatus=$( get_IPdata_Status is_known_abuser )
+
+    timeZoneIpinfo=$( get_Ipinfo_Field timezone )
+    UTCOffsetIpinfo=$( TZ="$timeZoneIpinfo" date +%z )
+    currentTimeIpinfo=$( TZ="$timeZoneIpinfo" date +%c )
+
+    timeZoneIpdata=$( get_Ipdata_Timeinfo name )
+    UTCOffsetIpdata=$( get_Ipdata_Timeinfo offset )
+    currentTimeIpdata=$( TZ="$timeZoneIpdata" date +%c )
+
+    torStatus=$( get_Ipdata_Status is_tor )
+    proxyStatus=$( get_Ipdata_Status is_proxy )
+    attackerStatus=$( get_Ipdata_Status is_known_attacker )
+    threatStatus=$( get_Ipdata_Status is_threat )
+    botStatus=$( get_Ipdata_Status is_known_abuser )
     
     noiseStatus=$( get_Greynoise_Status noise )
     riotStatus=$( get_Greynoise_Status riot )
@@ -276,20 +379,111 @@ function parse_fields() {
 function report(){
 
     underline "$1"
+
+    if [ "${bogon}" == "true" ]; then
+
+        echo -e "\n${1} is a non-routable address. No data available.\n\n"
+        return
+    fi
     
     echo -e "
     Hostname:                 $PTR
-    Country:                  $countryName
-    City:                     $cityName
     Org:                      $orgName
     ISP:                      $ISP
-    
+
+    Geographic Info
+    ==============="
+
+    if [ "${countryNameIpinfo}" == "${countryNameIpdata}" ]; then
+
+        echo
+        echo "    Country:                  ${countryNameIpinfo}"
+
+        if [ "${regionNameIpinfo}" == "${regionNameIpdata}" -o "${regionNameIpdata}" == "unknown" ]; then
+
+            echo "    Region:                   ${regionNameIpinfo}"
+
+            if [ "${cityNameIpinfo}" == "${cityNameIpdata}" -o "$cityNameIpdata" == "unknown" ]; then
+
+                echo "    City:                     ${cityNameIpinfo}"
+            else
+
+                echo "
+    IPInfo.io:
+
+        City:                     ${cityNameIpinfo}
+
+    IPData.co:
+
+        City:                     ${cityNameIpdata}"
+
+            fi
+        else
+
+            echo "
+    IPInfo.io:
+
+        Region:                   ${regionNameIpinfo}
+        City:                     ${cityNameIpinfo}
+
+    IPData.co:
+
+        Region:                   ${regionNameIpdata}
+        City:                     ${cityNameIpdata}"
+
+        fi
+
+    else
+
+        echo "
+    IPInfo.io:
+
+        Country:                  ${countryNameIpinfo}
+        Region:                   ${regionNameIpinfo}
+        City:                     ${cityNameIpinfo}
+
+    IPData.co:
+
+        Country:                  ${countryNameIpdata}
+        Region:                   ${regionNameIpdata}
+        City:                     ${cityNameIpdata}"
+    fi
+
+    echo "
+    Timezone Info
+    ============="
+
+    if [ "${timeZoneIpinfo}" == "${timeZoneIpdata}" -a "${UTCOffsetIpinfo}" == "${UTCOffsetIpdata}" -a "${currentTimeIpinfo}" == "${currentTimeIpdata}" ]; then
+
+        echo "
+    Timezone:                 ${timeZoneIpinfo}
+    UTC offset:               ${UTCOffsetIpinfo}
+    Current time:             ${currentTimeIpinfo}"
+
+    else
+
+        echo "
+    IPInfo.io:
+   
+        Timezone:                 ${timeZoneIpinfo}
+        UTC offset:               ${UTCOffsetIpinfo}
+        Current time:             ${currentTimeIpinfo}
+
+    IPData.co:
+
+        Timezone:                 ${timeZoneIpdata}
+        UTC offset:               ${UTCOffsetIpdata}
+        Current time:             ${currentTimeIpdata}"
+
+    fi
+
+    echo "
     IPData assessment
     =================
     
     Tor node?                 $torStatus
     Proxy node?               $proxyStatus
-    Known Attacker?           $attackerStatus
+    Known attacker?           $attackerStatus
     Known threat?             $threatStatus
     Known spambot?            $botStatus
     
