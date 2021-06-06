@@ -390,6 +390,7 @@ function report(){
     Hostname:                 $PTR
     Org:                      $orgName
     ISP:                      $ISP
+    Connection type:          $abuseConnType
 
     Geographic Info
     ==============="
@@ -509,7 +510,8 @@ function report(){
     Reports past 90d:         $abuseReports
     No. of reporters:         $abuseReporters
     Confidence of abuse:      ${abuseConfidence}%
-    Connection type:          $abuseConnType"
+    Link:                     https://abuseipdb.com/check/${1}
+"
 
 }
 
