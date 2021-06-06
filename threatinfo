@@ -193,7 +193,7 @@ function fetch_data(){
 
         echo "Freshening country code data"
 
-        curl -L -s https://datahub.io/core/country-list/r/data.json |jq '.[] | "\(.Code) \(.Name)"' |sed 's/^"//; s/\"$//' >${KEEP_DATA_LOCATION}/countrycodes.txt 
+        curl -L -s https://datahub.io/core/country-list/r/data.json |jq '.[] | "\(.Code) \(.Name)"' |sed 's/^"//; s/\"$//; ; s/Russian\ Federation/Russia/' >${KEEP_DATA_LOCATION}/countrycodes.txt 
         echo
     fi
 
@@ -411,11 +411,11 @@ function report(){
                 echo "
     IPInfo.io:
 
-        City:                     ${cityNameIpinfo}
+        City:                 ${cityNameIpinfo}
 
     IPData.co:
 
-        City:                     ${cityNameIpdata}"
+        City:                 ${cityNameIpdata}"
 
             fi
         else
@@ -423,13 +423,13 @@ function report(){
             echo "
     IPInfo.io:
 
-        Region:                   ${regionNameIpinfo}
-        City:                     ${cityNameIpinfo}
+        Region:               ${regionNameIpinfo}
+        City:                 ${cityNameIpinfo}
 
     IPData.co:
 
-        Region:                   ${regionNameIpdata}
-        City:                     ${cityNameIpdata}"
+        Region:               ${regionNameIpdata}
+        City:                 ${cityNameIpdata}"
 
         fi
 
@@ -438,15 +438,15 @@ function report(){
         echo "
     IPInfo.io:
 
-        Country:                  ${countryNameIpinfo}
-        Region:                   ${regionNameIpinfo}
-        City:                     ${cityNameIpinfo}
+        Country:              ${countryNameIpinfo}
+        Region:               ${regionNameIpinfo}
+        City:                 ${cityNameIpinfo}
 
     IPData.co:
 
-        Country:                  ${countryNameIpdata}
-        Region:                   ${regionNameIpdata}
-        City:                     ${cityNameIpdata}"
+        Country:              ${countryNameIpdata}
+        Region:               ${regionNameIpdata}
+        City:                 ${cityNameIpdata}"
     fi
 
     echo "
