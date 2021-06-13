@@ -70,7 +70,7 @@ function underline(){
 function check_arg(){
 
     # Check that $1 is an IPv4 address
-    if ! grep -q -P '^(([1-9]?[0-9]|1[0-9][0-9]|2([0-4][0-9]|5[0-5]))\.){3}([1-9]?[0-9]|1[0-9][0-9]|2([0-4][0-9]|5[0-5]))$' <<<"${1}"; then
+    if ! egrep -q '^(([1-9]?[0-9]|1[0-9][0-9]|2([0-4][0-9]|5[0-5]))\.){3}([1-9]?[0-9]|1[0-9][0-9]|2([0-4][0-9]|5[0-5]))$' <<<"${1}"; then
 
         echo "Usage: threatinfo <IPv4 ADDRESS>"
         exit 1
@@ -126,9 +126,9 @@ _EOF
     fi
 
     # Make sure permissions on the key store file are -rw------- for security
-    if [ $( stat -L -c "%a" "${KEY_STORE}" ) != "600" ]; then
+    if ! ls -l "${KEY_STORE}" |egrep -q '^-rw-------' ; then
 
-        echo "Warning: Fixing permissions on "${KEY_STORE}". Permissions were $( stat -L -c "%a" "${KEY_STORE}" ), changing them to 600"
+        echo "Warning: Fixing permissions on "${KEY_STORE}". Permissions were $( ls -l "${KEY_STORE}" |cut -f 1 -d " " ), changing them to -rw-------"
         chmod 600 "${KEY_STORE}"
     fi
 
@@ -184,7 +184,7 @@ function get_AbuseIPDB_Field(){
 function resolve_Country_Name(){
 
     # Echoes a country name given a two letter country code
-    grep -P "^${1}" ${KEEP_DATA_LOCATION}/countrycodes.txt |cut -f 2- -d " "
+    egrep "^${1}" ${KEEP_DATA_LOCATION}/countrycodes.txt |cut -f 2- -d " "
 }
 
 function fetch_data(){
