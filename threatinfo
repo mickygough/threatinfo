@@ -199,24 +199,9 @@ function check_Alienvault_Reputation(){
     [ -n "$alienRep" ] && echo "$alienRep" || echo "Not found"
 }
 
-function check_BlocklistDe_Status(){
-
-    egrep -q "^${targetIP}$" ${KEEP_DATA_LOCATION}/blocklist.de && echo "Found" || echo "Not found"
-}
-
 function check_Bruteforce_Status(){
 
     egrep -q "^${targetIP}\s" ${KEEP_DATA_LOCATION}/bruteforce.data && echo "Found" || echo "Not found"
-}
-
-function check_BadIPs_Status(){
-
-    egrep -q "^${targetIP}$" ${KEEP_DATA_LOCATION}/badips.data && echo "Found" || echo "Not found"
-}
-
-function check_CompIPs_Status(){
-
-    egrep -q "^${targetIP}$" ${KEEP_DATA_LOCATION}/compips.data && echo "Found" || echo "Not found"
 }
 
 function check_Simple_Status(){
