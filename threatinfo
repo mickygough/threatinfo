@@ -8,9 +8,7 @@
 # Returns a report about <IP ADDRESS> useful to SOC staff and threat researchers
 # using publicly available data.
 #
-# Version: 0.1a
-#
-# Todo: Lots of things.
+# Version: 0.2
 #
 
 #
