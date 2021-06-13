@@ -79,6 +79,12 @@ function check_arg(){
 
 function get_keys(){
 
+    # Create the data location
+    if [ ! -d "${KEEP_DATA_LOCATION}" ]; then
+
+        mkdir -p "${KEEP_DATA_LOCATION}"
+    fi
+
     # Check that the keystore exists
     if [ ! -f "${KEY_STORE}" ]; then
 
@@ -505,6 +511,9 @@ function parse_fields() {
     
 function report(){
 
+    timestamp=$( date +%F:%T:%S )
+
+(
     underline "${targetIP}"
 
     if [ "${bogon}" == "true" ]; then
@@ -651,6 +660,10 @@ function report(){
     Greensnow Blocklist:      ${greensnowStatus}
     Talos Blocklist:          ${talosStatus}
 "
+
+) >${KEEP_DATA_LOCATION}/${targetIP}/report-${timestamp}
+
+cat "${KEEP_DATA_LOCATION}/${targetIP}/report-${timestamp}"
 
 }
 
