@@ -162,7 +162,7 @@ function get_Ipdata_Status(){
 
     # Extracts a single status report field from an IPData.co JSON response
 
-    echo "$IPDATA_DATA" |jq ".threat|.${1}" |sed 's/false/No/; s/true/\\E[91mYes\\E[0m/; s/null/unknown/'
+    echo "$IPDATA_DATA" |jq ".threat|.${1}" |sed 's/false/No/; s/true/Yes/; s/null/unknown/'
 }
 
 function get_Ipdata_Timeinfo(){
@@ -175,7 +175,7 @@ function get_Greynoise_Status(){
 
     # Extracts a single status report field from a Greynoise.io JSON response
 
-    echo "$GREYNOISE_DATA" |jq ".${1}" |sed 's/false/No/; s/true/Yes/; s/^$/unknown/; s/^"//; s/"$//; s/malicious/\\E[91mMalicious\\E[0m/' 
+    echo "$GREYNOISE_DATA" |jq ".${1}" |sed 's/false/No/; s/true/Yes/; s/^$/unknown/; s/^"//; s/"$//; s/malicious/Malicious/' 
 }
 
 function get_AbuseIPDB_Field(){
@@ -194,19 +194,19 @@ function resolve_Country_Name(){
 function check_Alienvault_Reputation(){
 
     # Echoes either "Not found" or the Alienvault classification.
-    alienRep=$( egrep "^${targetIP}#" ${KEEP_DATA_LOCATION}/alienvault.data |cut -f 4 -d '#' | sed 's/Malicious\ Host/\\E[91mMalicious Host\\E[0m/' )
+    alienRep=$( egrep "^${targetIP}#" ${KEEP_DATA_LOCATION}/alienvault.data |cut -f 4 -d '#' | sed 's/Malicious\ Host/Malicious Host/' )
 
     [ -n "$alienRep" ] && echo "$alienRep" || echo "Not found"
 }
 
 function check_Bruteforce_Status(){
 
-    egrep -q "^${targetIP}\s" ${KEEP_DATA_LOCATION}/bruteforce.data && echo "\\E[91mFound\\E[0m" || echo "Not found"
+    egrep -q "^${targetIP}\s" ${KEEP_DATA_LOCATION}/bruteforce.data && echo "Found" || echo "Not found"
 }
 
 function check_Simple_Status(){
 
-    egrep -q "^${targetIP}$" ${KEEP_DATA_LOCATION}/${1} && echo "\\E[91mFound\\E[0m" || echo "Not found"
+    egrep -q "^${targetIP}$" ${KEEP_DATA_LOCATION}/${1} && echo "Found" || echo "Not found"
 }
 
 function fetch_data(){
