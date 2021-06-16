@@ -162,7 +162,7 @@ function get_Ipdata_Status(){
 
     # Extracts a single status report field from an IPData.co JSON response
 
-    echo "$IPDATA_DATA" |jq ".threat|.${1}" |sed 's/false/No/; s/true/Yes/; s/null/unknown/'
+    echo "$IPDATA_DATA" |jq ".threat|.${1}" |sed 's/false/No/; s/true/\\e[91mYes\\e[0m/; s/null/unknown/'
 }
 
 function get_Ipdata_Timeinfo(){
@@ -175,7 +175,7 @@ function get_Greynoise_Status(){
 
     # Extracts a single status report field from a Greynoise.io JSON response
 
-    echo "$GREYNOISE_DATA" |jq ".${1}" |sed 's/false/No/; s/true/Yes/; s/^$/unknown/; s/^"//; s/"$//' 
+    echo "$GREYNOISE_DATA" |jq ".${1}" |sed 's/false/No/; s/true/Yes/; s/^$/unknown/; s/^"//; s/"$//; s/malicious/\\e[91mMalicious\\e[0m/' 
 }
 
 function get_AbuseIPDB_Field(){
@@ -194,19 +194,19 @@ function resolve_Country_Name(){
 function check_Alienvault_Reputation(){
 
     # Echoes either "Not found" or the Alienvault classification.
-    alienRep=$( egrep "^${targetIP}#" ${KEEP_DATA_LOCATION}/alienvault.data |cut -f 4 -d '#' )
+    alienRep=$( egrep "^${targetIP}#" ${KEEP_DATA_LOCATION}/alienvault.data |cut -f 4 -d '#' | sed 's/Malicious\ Host/\\e[91mMalicious Host\\e[0m/' )
 
     [ -n "$alienRep" ] && echo "$alienRep" || echo "Not found"
 }
 
 function check_Bruteforce_Status(){
 
-    egrep -q "^${targetIP}\s" ${KEEP_DATA_LOCATION}/bruteforce.data && echo "Found" || echo "Not found"
+    egrep -q "^${targetIP}\s" ${KEEP_DATA_LOCATION}/bruteforce.data && echo "\\e[91mFound\\e[0m" || echo "Not found"
 }
 
 function check_Simple_Status(){
 
-    egrep -q "^${targetIP}$" ${KEEP_DATA_LOCATION}/${1} && echo "Found" || echo "Not found"
+    egrep -q "^${targetIP}$" ${KEEP_DATA_LOCATION}/${1} && echo "\\e[91mFound\\e[0m" || echo "Not found"
 }
 
 function fetch_data(){
@@ -228,7 +228,7 @@ function fetch_data(){
     #
     if [ $( find ${KEEP_DATA_LOCATION}/alienvault.data -mmin -60 2>/dev/null |wc -l ) -lt 1 ]; then
 
-        echo "Freshening Alienvault reputation database"
+        echo "Freshening Alienvault reputation dataset"
 
         curl -L -s https://reputation.alienvault.com/reputation.data >${KEEP_DATA_LOCATION}/alienvault.data
     fi    
@@ -236,11 +236,11 @@ function fetch_data(){
     #
     # Fetch the Blocklist.de blocklist. Update daily.
     #
-    if [ $( find ${KEEP_DATA_LOCATION}/blocklist.de -mtime -1 2>/dev/null |wc -l ) -lt 1 ]; then
+    if [ $( find ${KEEP_DATA_LOCATION}/blocklistde.data -mtime -1 2>/dev/null |wc -l ) -lt 1 ]; then
 
-        echo "Freshening Blocklist.de database"
+        echo "Freshening Blocklist.de dataset"
 
-        curl -L -s https://lists.blocklist.de/lists/all.txt >${KEEP_DATA_LOCATION}/blocklist.de
+        curl -L -s https://lists.blocklist.de/lists/all.txt >${KEEP_DATA_LOCATION}/blocklistde.data
     fi
 
     #
@@ -248,29 +248,39 @@ function fetch_data(){
     #
     if [ $( find ${KEEP_DATA_LOCATION}/bruteforce.data -mtime -1 2>/dev/null |wc -l ) -lt 1 ]; then
 
-        echo "Freshening Bruteforce Blocker database"
+        echo "Freshening Bruteforce Blocker dataset"
 
         curl -L -s http://danger.rulez.sk/projects/bruteforceblocker/blist.php >${KEEP_DATA_LOCATION}/bruteforce.data
     fi
 
     #
-    # Fetch the CINS Bad IPs database. This is updated in realtime, so we'll update our copy hourly
+    # Fetch the CINS Bad IPs dataset. This is updated in realtime, so we'll update our copy hourly
     #
     if [ $( find ${KEEP_DATA_LOCATION}/badips.data -mmin -60 2>/dev/null |wc -l ) -lt 1 ]; then
 
-        echo "Freshening CINS Bad IPs database"
+        echo "Freshening CINS Bad IPs dataset"
 
         curl -L -s http://cinsscore.com/list/ci-badguys.txt >${KEEP_DATA_LOCATION}/badips.data
     fi
 
     #
-    # Fetch the Emerging Threats Compromised IPs database. Update daily.
+    # Fetch the Emerging Threats Compromised IPs dataset. Update daily.
     #
     if [ $( find ${KEEP_DATA_LOCATION}/compips.data -mtime -1 2>/dev/null |wc -l ) -lt 1 ]; then
 
-        echo "Freshening ET Compromised IPs database"
+        echo "Freshening ET Compromised IPs dataset"
 
         curl -L -s https://rules.emergingthreats.net/blockrules/compromised-ips.txt >${KEEP_DATA_LOCATION}/compips.data
+    fi
+
+    #
+    # Fetch the 3CoreSec dataset. Update every 4 hours
+    #
+    if [ $( find ${KEEP_DATA_LOCATION}/3coresec.data -mmin -240 2>/dev/null |wc -l ) -lt 1 ]; then
+
+        echo "Freshening 3CoreSec dataset"
+
+        curl -L -s https://blacklist.3coresec.net/lists/all.txt >${KEEP_DATA_LOCATION}/3coresec.data
     fi
 
     #
@@ -278,7 +288,7 @@ function fetch_data(){
     #
     if [ $( find ${KEEP_DATA_LOCATION}/darklist.data -mmin -60 2>/dev/null |wc -l ) -lt 1 ]; then
 
-        echo "Freshening Darklist database"
+        echo "Freshening Darklist dataset"
 
         curl -L -s http://www.darklist.de/raw.php >${KEEP_DATA_LOCATION}/darklist.data
     fi
@@ -288,7 +298,7 @@ function fetch_data(){
     #
     if [ $( find ${KEEP_DATA_LOCATION}/greensnow.data -mmin -60 2>/dev/null |wc -l ) -lt 1 ]; then
 
-        echo "Freshening Greensnow database"
+        echo "Freshening Greensnow dataset"
 
         curl -L -s https://blocklist.greensnow.co/greensnow.txt >${KEEP_DATA_LOCATION}/greensnow.data
     fi
@@ -298,7 +308,7 @@ function fetch_data(){
     #
     if [ $( find ${KEEP_DATA_LOCATION}/talos.data -mtime -1 2>/dev/null |wc -l ) -lt 1 ]; then
 
-        echo "Freshening Talos database"
+        echo "Freshening Talos dataset"
 
         curl -L -s http://www.talosintelligence.com/documents/ip-blacklist >${KEEP_DATA_LOCATION}/talos.data
     fi
@@ -485,10 +495,11 @@ function parse_fields() {
     abuseConnType=$( get_AbuseIPDB_Field usageType )
 
     alienVaultStatus=$( check_Alienvault_Reputation )
-    blocklistDeStatus=$( check_Simple_Status blocklist.de )
+    blocklistDeStatus=$( check_Simple_Status blocklistde.data )
     bruteforceStatus=$( check_Bruteforce_Status )
     badIPsStatus=$( check_Simple_Status badips.data )
     compIPsStatus=$( check_Simple_Status compips.data )
+    coresecStatus=$( check_Simple_Status 3coresec.data )
     darklistStatus=$( check_Simple_Status darklist.data )
     greensnowStatus=$( check_Simple_Status greensnow.data )
     talosStatus=$( check_Simple_Status talos.data )
@@ -542,7 +553,7 @@ function report(){
             fi
         else
 
-            echo "
+            echo -e "
     IPInfo.io:
 
         Region:               ${regionNameIpinfo}
@@ -557,7 +568,7 @@ function report(){
 
     else
 
-        echo "
+        echo -e "
     IPInfo.io:
 
         Country:              ${countryNameIpinfo}
@@ -571,20 +582,20 @@ function report(){
         City:                 ${cityNameIpdata}"
     fi
 
-    echo "
+    echo -e "
     Timezone Info
     ============="
 
     if [ "${timeZoneIpinfo}" == "${timeZoneIpdata}" -a "${UTCOffsetIpinfo}" == "${UTCOffsetIpdata}" ]; then
 
-        echo "
+        echo -e "
     Timezone:                 ${timeZoneIpinfo}
     UTC offset:               ${UTCOffsetIpinfo}
     Current time:             ${currentTimeIpinfo}"
 
     else
 
-        echo "
+        echo -e "
     IPInfo.io:
    
         Timezone:             ${timeZoneIpinfo}
@@ -599,7 +610,7 @@ function report(){
 
     fi
 
-    echo "
+    echo -e "
     IPData assessment
     =================
     
@@ -617,14 +628,14 @@ function report(){
 
     if [ "$noiseStatus" == "Yes" -o "$riotStatus" == "Yes" ]; then
 
-        echo "    Category:                 $categoryStatus
+        echo -e "    Category:                 $categoryStatus
     Name (if known):          $nameStatus
     Last observed:            $lastSeenStatus
     Link:                     $linkStatus"
 
     fi
 
-    echo "    
+    echo -e "    
     AbuseIPDB assessment
     ====================
     
@@ -640,8 +651,9 @@ function report(){
     Blocklist.de:             ${blocklistDeStatus}
     Brute Force Blocklist:    ${bruteforceStatus}
     CINS Bad IPs:             ${badIPsStatus}
-    Darklist:                 ${darklistStatus}
     ET Compromised IPs:       ${compIPsStatus}
+    3CoreSec Blocklist:       ${coresecStatus}
+    Darklist:                 ${darklistStatus}
     Greensnow Blocklist:      ${greensnowStatus}
     Talos Blocklist:          ${talosStatus}
 "
