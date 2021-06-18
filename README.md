@@ -12,8 +12,8 @@ threatinfo downloads and checks against a number of different IP blocklists. The
 **Sample output:** (anonymised)
 
 
-`xxx.xx.xx.xxx
-
+`
+xxx.xx.xx.xxx
 
     Hostname:                 Unknown
     Org:                      AS209605 UAB Host Baltic
