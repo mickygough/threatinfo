@@ -73,7 +73,8 @@ xxx.xx.xx.xxx
     3CoreSec Blocklist:       Not found
     Darklist:                 Found
     Greensnow Blocklist:      Found
-    Talos Blocklist:          Not found```
+    Talos Blocklist:          Not found
+```
 
 ## Installation
 
