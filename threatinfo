@@ -209,7 +209,59 @@ function check_Simple_Status(){
     egrep -q "^${targetIP}$" ${KEEP_DATA_LOCATION}/${1} && echo "Found" || echo "Not found"
 }
 
+function freshen_country_code_data(){
+
+    curl -L -s https://datahub.io/core/country-list/r/data.json |jq '.[] | "\(.Code) \(.Name)"' |sed 's/^"//; s/\"$//; ; s/Russian\ Federation/Russia/' >${KEEP_DATA_LOCATION}/countrycodes.txt 
+}
+
+function freshen_alienvault_data(){
+
+    curl -L -s https://reputation.alienvault.com/reputation.data >${KEEP_DATA_LOCATION}/alienvault.data
+}
+
+function freshen_blocklistde_data(){
+
+    curl -L -s https://lists.blocklist.de/lists/all.txt >${KEEP_DATA_LOCATION}/blocklistde.data
+}
+
+function freshen_bruteforce_blocker_data(){
+
+    curl -L -s http://danger.rulez.sk/projects/bruteforceblocker/blist.php >${KEEP_DATA_LOCATION}/bruteforce.data
+}
+
+function freshen_cins_data(){
+
+    curl -L -s http://cinsscore.com/list/ci-badguys.txt >${KEEP_DATA_LOCATION}/badips.data
+}
+
+function freshen_et_data(){
+
+    curl -L -s https://rules.emergingthreats.net/blockrules/compromised-ips.txt >${KEEP_DATA_LOCATION}/compips.data
+}
+
+function freshen_3core_data(){
+
+    curl -L -s https://blacklist.3coresec.net/lists/all.txt >${KEEP_DATA_LOCATION}/3coresec.data
+}
+
+function freshen_darklist_data(){
+
+    curl -L -s http://www.darklist.de/raw.php >${KEEP_DATA_LOCATION}/darklist.data
+}
+
+function freshen_greensnow_data(){
+
+    curl -L -s https://blocklist.greensnow.co/greensnow.txt >${KEEP_DATA_LOCATION}/greensnow.data
+}
+
+function freshen_talos_data(){
+
+    curl -L -s http://www.talosintelligence.com/documents/ip-blacklist >${KEEP_DATA_LOCATION}/talos.data
+}
+
 function fetch_data(){
+
+    echo "Freshening datasets"
 
     #
     # Fetch a country code to country name mapping database. Datahub.io maintains one.
@@ -218,9 +270,7 @@ function fetch_data(){
     #
     if [ $( find ${KEEP_DATA_LOCATION}/countrycodes.txt -mtime -${COUNTRY_CODE_REFRESH} 2>/dev/null |wc -l ) -lt 1 ]; then
 
-        echo "Freshening country code data"
-
-        curl -L -s https://datahub.io/core/country-list/r/data.json |jq '.[] | "\(.Code) \(.Name)"' |sed 's/^"//; s/\"$//; ; s/Russian\ Federation/Russia/' >${KEEP_DATA_LOCATION}/countrycodes.txt 
+        freshen_country_code_data &
     fi
 
     #
@@ -228,9 +278,7 @@ function fetch_data(){
     #
     if [ $( find ${KEEP_DATA_LOCATION}/alienvault.data -mmin -60 2>/dev/null |wc -l ) -lt 1 ]; then
 
-        echo "Freshening Alienvault reputation dataset"
-
-        curl -L -s https://reputation.alienvault.com/reputation.data >${KEEP_DATA_LOCATION}/alienvault.data
+        freshen_alienvault_data &
     fi    
 
     #
@@ -238,9 +286,7 @@ function fetch_data(){
     #
     if [ $( find ${KEEP_DATA_LOCATION}/blocklistde.data -mtime -1 2>/dev/null |wc -l ) -lt 1 ]; then
 
-        echo "Freshening Blocklist.de dataset"
-
-        curl -L -s https://lists.blocklist.de/lists/all.txt >${KEEP_DATA_LOCATION}/blocklistde.data
+        freshen_blocklistde_data &
     fi
 
     #
@@ -248,9 +294,7 @@ function fetch_data(){
     #
     if [ $( find ${KEEP_DATA_LOCATION}/bruteforce.data -mtime -1 2>/dev/null |wc -l ) -lt 1 ]; then
 
-        echo "Freshening Bruteforce Blocker dataset"
-
-        curl -L -s http://danger.rulez.sk/projects/bruteforceblocker/blist.php >${KEEP_DATA_LOCATION}/bruteforce.data
+        freshen_bruteforce_blocker_data &
     fi
 
     #
@@ -258,9 +302,7 @@ function fetch_data(){
     #
     if [ $( find ${KEEP_DATA_LOCATION}/badips.data -mmin -60 2>/dev/null |wc -l ) -lt 1 ]; then
 
-        echo "Freshening CINS Bad IPs dataset"
-
-        curl -L -s http://cinsscore.com/list/ci-badguys.txt >${KEEP_DATA_LOCATION}/badips.data
+        freshen_cins_data &
     fi
 
     #
@@ -268,9 +310,7 @@ function fetch_data(){
     #
     if [ $( find ${KEEP_DATA_LOCATION}/compips.data -mtime -1 2>/dev/null |wc -l ) -lt 1 ]; then
 
-        echo "Freshening ET Compromised IPs dataset"
-
-        curl -L -s https://rules.emergingthreats.net/blockrules/compromised-ips.txt >${KEEP_DATA_LOCATION}/compips.data
+        freshen_et_data &
     fi
 
     #
@@ -278,9 +318,7 @@ function fetch_data(){
     #
     if [ $( find ${KEEP_DATA_LOCATION}/3coresec.data -mmin -240 2>/dev/null |wc -l ) -lt 1 ]; then
 
-        echo "Freshening 3CoreSec dataset"
-
-        curl -L -s https://blacklist.3coresec.net/lists/all.txt >${KEEP_DATA_LOCATION}/3coresec.data
+        freshen_3core_data &
     fi
 
     #
@@ -288,9 +326,7 @@ function fetch_data(){
     #
     if [ $( find ${KEEP_DATA_LOCATION}/darklist.data -mmin -60 2>/dev/null |wc -l ) -lt 1 ]; then
 
-        echo "Freshening Darklist dataset"
-
-        curl -L -s http://www.darklist.de/raw.php >${KEEP_DATA_LOCATION}/darklist.data
+        freshen_darklist_data &
     fi
 
     #
@@ -298,9 +334,7 @@ function fetch_data(){
     #
     if [ $( find ${KEEP_DATA_LOCATION}/greensnow.data -mmin -60 2>/dev/null |wc -l ) -lt 1 ]; then
 
-        echo "Freshening Greensnow dataset"
-
-        curl -L -s https://blocklist.greensnow.co/greensnow.txt >${KEEP_DATA_LOCATION}/greensnow.data
+        freshen_greensnow_data &
     fi
 
     #
@@ -308,10 +342,13 @@ function fetch_data(){
     #
     if [ $( find ${KEEP_DATA_LOCATION}/talos.data -mtime -1 2>/dev/null |wc -l ) -lt 1 ]; then
 
-        echo "Freshening Talos dataset"
-
-        curl -L -s http://www.talosintelligence.com/documents/ip-blacklist >${KEEP_DATA_LOCATION}/talos.data
+        freshen_talos_data &
     fi
+
+    #
+    # Allow the refreshes to finish
+    #
+    wait
 
     # 
     # The main routine that pulls data from the various data sources
@@ -425,6 +462,11 @@ function fetch_data(){
     #
 
     ABUSEIPDB_DATA=$( curl -s -H "Key: ${ABUSEIPDB_KEY}" -H "Accept: application/json" "https://api.abuseipdb.com/api/v2/check?ipAddress=${targetIP}&maxAgeInDays=90" |jq '.' )
+
+    if [ $KEEP_DATA -eq 1 ]; then
+
+        echo "${ABUSEIPDB_DATA}" >${KEEP_DATA_LOCATION}/${targetIP}/abuseipdb.json
+    fi
 
     echo -n "."
     
