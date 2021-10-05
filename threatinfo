@@ -12,7 +12,7 @@
 #
 
 #
-# Do we want to store the data for manual analysis later?
+# Do we want to store the data for manual analysis later? Yes we do.
 #
 
 KEEP_DATA=1
@@ -259,9 +259,40 @@ function freshen_talos_data(){
     curl -L -s http://www.talosintelligence.com/documents/ip-blacklist >${KEEP_DATA_LOCATION}/talos.data
 }
 
+function fetch_ipinfo_data(){
+
+    curl -s "https://ipinfo.io/$1/?token=${IPINFO_KEY}" |jq '.' >${KEEP_DATA_LOCATION}/$1/ipinfo.json
+}
+
+function fetch_ipdata_data(){
+
+    curl -s "https://api.ipdata.co/${1}?api-key=${IPDATA_KEY}" |jq '.' >${KEEP_DATA_LOCATION}/$1/ipdata.json
+}
+
+function fetch_shodan_data(){
+
+    curl -s "https://api.shodan.io/shodan/host/${1}?key=${SHODAN_KEY}" |jq '.' >${KEEP_DATA_LOCATION}/${1}/shodan.json
+}
+
+function fetch_greynoise_data(){
+        
+    curl -s https://api.greynoise.io/v3/community/${1} |jq '.' >${KEEP_DATA_LOCATION}/${1}/greynoise.json
+}
+
+function fetch_abuseipdb_data(){
+
+    curl -s -H "Key: ${ABUSEIPDB_KEY}" -H "Accept: application/json" "https://api.abuseipdb.com/api/v2/check?ipAddress=${1}&maxAgeInDays=90" |jq '.' >${KEEP_DATA_LOCATION}/${1}/abuseipdb.json
+}
+
+function fetch_whois_data(){
+
+    curl -s -L -H "Accept: application/json" "https://rdap.apnic.net/ip/${1}/32" |jq '.' >${KEEP_DATA_LOCATION}/${1}/whois.json
+
+}
+
 function fetch_data(){
 
-    echo "Freshening datasets"
+    echo "Freshening datasets and fetching ${targetIP} data"
 
     #
     # Fetch a country code to country name mapping database. Datahub.io maintains one.
@@ -345,13 +376,8 @@ function fetch_data(){
         freshen_talos_data &
     fi
 
-    #
-    # Allow the refreshes to finish
-    #
-    wait
-
     # 
-    # The main routine that pulls data from the various data sources
+    # Pull IP-specific data from various data sources
     #
     echo
 
@@ -359,34 +385,30 @@ function fetch_data(){
         mkdir -p ${KEEP_DATA_LOCATION}/${targetIP}
     fi
 
-    echo -n "Fetching ${targetIP} data."
-
     #
     # Fetch data from IPInfo.io. This gives really good location data.
+    # 
+    # We don't run this in the background because it gives us a good bogon check
     #
 
     if [ $( find ${KEEP_DATA_LOCATION}/${targetIP}/ipinfo.json -mtime -${IP_DATA_REFRESH} 2>/dev/null |wc -l ) -lt 1 ]; then
 
-        IPINFO_DATA=$( curl -s "https://ipinfo.io/${targetIP}/?token=${IPINFO_KEY}" |jq '.' )
-
-        if [ $KEEP_DATA -eq 1 ]; then
-
-            echo "${IPINFO_DATA}" >${KEEP_DATA_LOCATION}/${targetIP}/ipinfo.json
-        fi
-    else
-
-        IPINFO_DATA="$( cat ${KEEP_DATA_LOCATION}/${targetIP}/ipinfo.json )"
+        fetch_ipinfo_data ${targetIP}
     fi
-   
-    echo -n "."
 
+    IPINFO_DATA="$( cat ${KEEP_DATA_LOCATION}/${targetIP}/ipinfo.json )"
+   
     #
-    # We're going to check if this is a bogon right now to avoid retrieving unnecessary data
+    # We're going to check if this IP is a bogon right now to avoid retrieving unnecessary data from other IP-specific sources
     bogon=$( get_Ipinfo_Field bogon )
 
     if [ "${bogon}" == "true" ]; then
 
         echo; echo
+
+        # Allow our refreshes to finish
+        wait
+
         return
     fi
 
@@ -396,18 +418,8 @@ function fetch_data(){
 
     if [ $( find ${KEEP_DATA_LOCATION}/${targetIP}/ipdata.json -mtime -${IP_DATA_REFRESH} 2>/dev/null |wc -l ) -lt 1 ]; then
 
-        IPDATA_DATA=$( curl -s "https://api.ipdata.co/${targetIP}?api-key=${IPDATA_KEY}" |jq '.' )
-
-        if [ $KEEP_DATA -eq 1 ]; then
-
-            echo "${IPDATA_DATA}" >${KEEP_DATA_LOCATION}/${targetIP}/ipdata.json
-        fi
-    else
-
-        IPDATA_DATA="$( cat ${KEEP_DATA_LOCATION}/${targetIP}/ipdata.json )"
+        fetch_ipdata_data ${targetIP} &
     fi
-
-    echo -n "."
 
     #
     # Fetch data from Shodan.io.
@@ -420,18 +432,8 @@ function fetch_data(){
 
         if [ $( find ${KEEP_DATA_LOCATION}/${targetIP}/shodan.json -mtime -${IP_DATA_REFRESH} 2>/dev/null |wc -l ) -lt 1 ]; then
 
-            SHODAN_DATA=$( curl -s "https://api.shodan.io/shodan/host/${targetIP}?key=${SHODAN_KEY}" |jq '.')
-
-            if [ $KEEP_DATA -eq 1 ]; then
-
-                echo "${SHODAN_DATA}" >${KEEP_DATA_LOCATION}/${targetIP}/shodan.json
-            fi
-        else
-
-            SHODAN_DATA="$( cat ${KEEP_DATA_LOCATION}/${targetIP}/shodan.json )"
+            fetch_shodan_data ${targetIP} &
         fi
-
-        echo -n "."
     fi
 
     #
@@ -442,18 +444,8 @@ function fetch_data(){
 
     if [ $( find ${KEEP_DATA_LOCATION}/${targetIP}/greynoise.json -mtime -${IP_DATA_REFRESH} 2>/dev/null |wc -l ) -lt 1 ]; then
 
-        GREYNOISE_DATA=$( curl -s  https://api.greynoise.io/v3/community/${targetIP} |jq '.' )
-
-        if [ $KEEP_DATA -eq 1 ]; then
-
-            echo "${GREYNOISE_DATA}" >${KEEP_DATA_LOCATION}/${targetIP}/greynoise.json
-        fi
-    else
-
-        GREYNOISE_DATA="$( cat ${KEEP_DATA_LOCATION}/${targetIP}/greynoise.json )"
+        fetch_greynoise_data ${targetIP} &
     fi
-
-    echo -n "."
 
     #
     # Fetch data from AbuseIPDB.com. This gives useful community-driven threat intelligence.
@@ -461,35 +453,32 @@ function fetch_data(){
     # Since this gets updated in realtime we're not going to use cached values for this data set.
     #
 
-    ABUSEIPDB_DATA=$( curl -s -H "Key: ${ABUSEIPDB_KEY}" -H "Accept: application/json" "https://api.abuseipdb.com/api/v2/check?ipAddress=${targetIP}&maxAgeInDays=90" |jq '.' )
+    fetch_abuseipdb_data ${targetIP} &
 
-    if [ $KEEP_DATA -eq 1 ]; then
-
-        echo "${ABUSEIPDB_DATA}" >${KEEP_DATA_LOCATION}/${targetIP}/abuseipdb.json
-    fi
-
-    echo -n "."
-    
     #
     # Fetch WHOIS data in JSON format using RDAP
     #
 
     if [ $( find ${KEEP_DATA_LOCATION}/${targetIP}/whois.json -mtime -${IP_DATA_REFRESH} 2>/dev/null |wc -l ) -lt 1 ]; then
 
-        WHOIS_DATA=$( curl -s -L -H "Accept: application/json" "https://rdap.apnic.net/ip/${targetIP}/32" |jq '.' )
+        fetch_whois_data ${targetIP} &
 
-        if [ $KEEP_DATA -eq 1 ]; then
-
-            echo "${WHOIS_DATA}" >${KEEP_DATA_LOCATION}/${targetIP}/whois.json
-        fi
-    else
-
-        WHOIS_DATA="$( cat ${KEEP_DATA_LOCATION}/${targetIP}/whois.json )"
     fi
 
-    echo "."
-    echo
+    #
+    # Allow the fetches to finish
+    #
+    wait
 
+    IPDATA_DATA="$( cat ${KEEP_DATA_LOCATION}/${targetIP}/ipdata.json )"
+    GREYNOISE_DATA="$( cat ${KEEP_DATA_LOCATION}/${targetIP}/greynoise.json )"
+    ABUSEIPDB_DATA="$( cat ${KEEP_DATA_LOCATION}/${targetIP}/abuseipdb.json )"
+    WHOIS_DATA="$( cat ${KEEP_DATA_LOCATION}/${targetIP}/whois.json )"
+
+    if [ -n "${SHODAN_KEY}" ]; then
+
+        SHODAN_DATA="$( cat ${KEEP_DATA_LOCATION}/${targetIP}/shodan.json )"
+    fi
 }
 
 function parse_fields() {
