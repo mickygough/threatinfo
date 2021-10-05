@@ -214,49 +214,9 @@ function freshen_country_code_data(){
     curl -L -s https://datahub.io/core/country-list/r/data.json |jq '.[] | "\(.Code) \(.Name)"' |sed 's/^"//; s/\"$//; ; s/Russian\ Federation/Russia/' >${KEEP_DATA_LOCATION}/countrycodes.txt 
 }
 
-function freshen_alienvault_data(){
+function freshen_data(){
 
-    curl -L -s https://reputation.alienvault.com/reputation.data >${KEEP_DATA_LOCATION}/alienvault.data
-}
-
-function freshen_blocklistde_data(){
-
-    curl -L -s https://lists.blocklist.de/lists/all.txt >${KEEP_DATA_LOCATION}/blocklistde.data
-}
-
-function freshen_bruteforce_blocker_data(){
-
-    curl -L -s http://danger.rulez.sk/projects/bruteforceblocker/blist.php >${KEEP_DATA_LOCATION}/bruteforce.data
-}
-
-function freshen_cins_data(){
-
-    curl -L -s http://cinsscore.com/list/ci-badguys.txt >${KEEP_DATA_LOCATION}/badips.data
-}
-
-function freshen_et_data(){
-
-    curl -L -s https://rules.emergingthreats.net/blockrules/compromised-ips.txt >${KEEP_DATA_LOCATION}/compips.data
-}
-
-function freshen_3core_data(){
-
-    curl -L -s https://blacklist.3coresec.net/lists/all.txt >${KEEP_DATA_LOCATION}/3coresec.data
-}
-
-function freshen_darklist_data(){
-
-    curl -L -s http://www.darklist.de/raw.php >${KEEP_DATA_LOCATION}/darklist.data
-}
-
-function freshen_greensnow_data(){
-
-    curl -L -s https://blocklist.greensnow.co/greensnow.txt >${KEEP_DATA_LOCATION}/greensnow.data
-}
-
-function freshen_talos_data(){
-
-    curl -L -s http://www.talosintelligence.com/documents/ip-blacklist >${KEEP_DATA_LOCATION}/talos.data
+    curl -L -s $1 >${KEEP_DATA_LOCATION}/$2
 }
 
 function fetch_ipinfo_data(){
@@ -309,7 +269,9 @@ function fetch_data(){
     #
     if [ $( find ${KEEP_DATA_LOCATION}/alienvault.data -mmin -60 2>/dev/null |wc -l ) -lt 1 ]; then
 
-        freshen_alienvault_data &
+        DATA_URL="https://reputation.alienvault.com/reputation.data"
+        TARGET_FILE="alienvault.data"
+        freshen_data "$DATA_URL" "$TARGET_FILE" &
     fi    
 
     #
@@ -317,7 +279,9 @@ function fetch_data(){
     #
     if [ $( find ${KEEP_DATA_LOCATION}/blocklistde.data -mtime -1 2>/dev/null |wc -l ) -lt 1 ]; then
 
-        freshen_blocklistde_data &
+        DATA_URL="https://lists.blocklist.de/lists/all.txt"
+        TARGET_FILE="blocklistde.data"
+        freshen_data "$DATA_URL" "$TARGET_FILE" &
     fi
 
     #
@@ -325,7 +289,9 @@ function fetch_data(){
     #
     if [ $( find ${KEEP_DATA_LOCATION}/bruteforce.data -mtime -1 2>/dev/null |wc -l ) -lt 1 ]; then
 
-        freshen_bruteforce_blocker_data &
+        DATA_URL="http://danger.rulez.sk/projects/bruteforceblocker/blist.php"
+        TARGET_FILE="bruteforce.data"
+        freshen_data "$DATA_URL" "$TARGET_FILE" &
     fi
 
     #
@@ -333,7 +299,9 @@ function fetch_data(){
     #
     if [ $( find ${KEEP_DATA_LOCATION}/badips.data -mmin -60 2>/dev/null |wc -l ) -lt 1 ]; then
 
-        freshen_cins_data &
+        DATA_URL="http://cinsscore.com/list/ci-badguys.txt"
+        TARGET_FILE="badips.data"
+        freshen_data "$DATA_URL" "$TARGET_FILE" &
     fi
 
     #
@@ -341,7 +309,9 @@ function fetch_data(){
     #
     if [ $( find ${KEEP_DATA_LOCATION}/compips.data -mtime -1 2>/dev/null |wc -l ) -lt 1 ]; then
 
-        freshen_et_data &
+        DATA_URL="https://rules.emergingthreats.net/blockrules/compromised-ips.txt"
+        TARGET_FILE="compips.data"
+        freshen_data "$DATA_URL" "$TARGET_FILE" &
     fi
 
     #
@@ -349,7 +319,9 @@ function fetch_data(){
     #
     if [ $( find ${KEEP_DATA_LOCATION}/3coresec.data -mmin -240 2>/dev/null |wc -l ) -lt 1 ]; then
 
-        freshen_3core_data &
+        DATA_URL="https://blacklist.3coresec.net/lists/all.txt"
+        TARGET_FILE="3coresec.data"
+        freshen_data "$DATA_URL" "$TARGET_FILE" &
     fi
 
     #
@@ -357,7 +329,9 @@ function fetch_data(){
     #
     if [ $( find ${KEEP_DATA_LOCATION}/darklist.data -mmin -60 2>/dev/null |wc -l ) -lt 1 ]; then
 
-        freshen_darklist_data &
+        DATA_URL="http://www.darklist.de/raw.php"
+        TARGET_FILE="darklist.data"
+        freshen_data "$DATA_URL" "$TARGET_FILE" &
     fi
 
     #
@@ -365,7 +339,9 @@ function fetch_data(){
     #
     if [ $( find ${KEEP_DATA_LOCATION}/greensnow.data -mmin -60 2>/dev/null |wc -l ) -lt 1 ]; then
 
-        freshen_greensnow_data &
+        DATA_URL="https://blocklist.greensnow.co/greensnow.txt"
+        TARGET_FILE="greensnow.data"
+        freshen_data "$DATA_URL" "$TARGET_FILE" &
     fi
 
     #
@@ -373,7 +349,9 @@ function fetch_data(){
     #
     if [ $( find ${KEEP_DATA_LOCATION}/talos.data -mtime -1 2>/dev/null |wc -l ) -lt 1 ]; then
 
-        freshen_talos_data &
+        DATA_URL="http://www.talosintelligence.com/documents/ip-blacklist"
+        TARGET_FILE="talos.data"
+        freshen_data "$DATA_URL" "$TARGET_FILE" &
     fi
 
     # 
