@@ -305,6 +305,17 @@ function fetch_data(){
     fi
 
     #
+    # Fetch the Cleantalk dataset. We're using the 30d aggregation from firehol.
+    # This is updated in realtime, so we'll update our copy hourly
+    #
+    if [ $( find ${KEEP_DATA_LOCATION}/cleantalk.data -mmin -60 2>/dev/null |wc -l ) -lt 1 ]; then
+
+	DATA_URL="https://iplists.firehol.org/files/cleantalk_30d.ipset"
+	TARGET_FILE="cleantalk.data"
+	freshen_data "$DATA_URL" "$TARGET_FILE" &
+    fi
+
+    #
     # Fetch the Emerging Threats Compromised IPs dataset. Update daily.
     #
     if [ $( find ${KEEP_DATA_LOCATION}/compips.data -mtime -1 2>/dev/null |wc -l ) -lt 1 ]; then
@@ -507,6 +518,7 @@ function parse_fields() {
     blocklistDeStatus=$( check_Simple_Status blocklistde.data )
     bruteforceStatus=$( check_Bruteforce_Status )
     badIPsStatus=$( check_Simple_Status badips.data )
+    cleantalkIPsStatus=$( check_Simple_Status cleantalk.data )
     compIPsStatus=$( check_Simple_Status compips.data )
     coresecStatus=$( check_Simple_Status 3coresec.data )
     darklistStatus=$( check_Simple_Status darklist.data )
@@ -660,6 +672,7 @@ function report(){
     Blocklist.de:             ${blocklistDeStatus}
     Brute Force Blocklist:    ${bruteforceStatus}
     CINS Bad IPs:             ${badIPsStatus}
+    Cleantalk Blocklist:      ${cleantalkIPsStatus}
     ET Compromised IPs:       ${compIPsStatus}
     3CoreSec Blocklist:       ${coresecStatus}
     Darklist:                 ${darklistStatus}
