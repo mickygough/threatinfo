@@ -69,6 +69,7 @@ xxx.xx.xx.xxx
     Blocklist.de:             Found
     Brute Force Blocklist:    Found
     CINS Bad IPs:             Not found
+    Cleantalk Blocklist:      Found
     ET Compromised IPs:       Found
     3CoreSec Blocklist:       Not found
     Darklist:                 Found
