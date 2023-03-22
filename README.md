@@ -7,7 +7,7 @@ It requires jq and GNU awk (gawk, or just awk on Linux) to be installed.
 
 threatinfo downloads and checks against a number of different IP blocklists. The blocklists are refreshed when required. Refresh rate varies per blocklist, between hourly and daily depending on how often they're updated.
 
-**Syntax:** `threatinfo <IPv4 address>`
+**Syntax:** `bash threatinfo <IPv4 address>`
 
 **Sample output:** (anonymised)
 
